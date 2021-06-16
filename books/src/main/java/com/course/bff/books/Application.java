@@ -1,5 +1,6 @@
 package com.course.bff.books;
 
+import brave.sampler.Sampler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -47,5 +48,10 @@ public class Application {
     @Bean
     public ChannelTopic topic() {
         return new ChannelTopic(redisTopic);
+    }
+
+    @Bean
+    public Sampler defaultSampler(){
+        return Sampler.ALWAYS_SAMPLE;
     }
 }
