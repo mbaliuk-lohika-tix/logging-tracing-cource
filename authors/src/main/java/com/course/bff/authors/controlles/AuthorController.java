@@ -6,6 +6,10 @@ import com.course.bff.authors.responses.AuthorResponse;
 import com.course.bff.authors.services.AuthorService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.Dsl;
@@ -18,12 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,14 +43,28 @@ public class AuthorController {
     private final static Logger logger = LoggerFactory.getLogger(AuthorController.class);
     private final AuthorService authorService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final MeterRegistry meterRegistry;
+    private Counter requestCounter;
+    private Counter errorCounter;
 
-    public AuthorController(AuthorService authorService, RedisTemplate<String, Object> redisTemplate) {
+    public AuthorController(AuthorService authorService, RedisTemplate<String, Object> redisTemplate, MeterRegistry meterRegistry) {
         this.authorService = authorService;
         this.redisTemplate = redisTemplate;
+        this.meterRegistry = meterRegistry;
+        requestCounter = Counter.builder("request_count")
+                .tag("ControllerName", "AuthorController")
+                .tag("ServiceName", "AuthorService")
+                .register(meterRegistry);
+        errorCounter = Counter.builder("error_count")
+                .tag("ControllerName", "AuthorController")
+                .tag("ServiceName", "AuthorService")
+                .register(meterRegistry);
     }
 
     @GetMapping()
+    @Timed
     public Collection<AuthorResponse> getAuthors() {
+        requestCounter.increment();
         logger.info("Get authors");
         List<AuthorResponse> authorResponses = new ArrayList<>();
         this.authorService.getAuthors().forEach(author -> {
@@ -61,7 +76,9 @@ public class AuthorController {
     }
 
     @GetMapping("/{id}")
+    @Timed
     public AuthorResponse getById(@PathVariable UUID id) {
+        requestCounter.increment();
         logger.info(String.format("Find authors by %s", id));
         Optional<Author> authorSearch = this.authorService.findById(id);
         if (authorSearch.isEmpty()) {
@@ -72,7 +89,9 @@ public class AuthorController {
     }
 
     @PostMapping()
+    @Timed
     public AuthorResponse createAuthors(@RequestBody CreateAuthorCommand createAuthorCommand) {
+        requestCounter.increment();
         logger.info("Create authors");
         Author author = this.authorService.create(createAuthorCommand);
         AuthorResponse authorResponse = createAuthorResponse(author);
@@ -98,5 +117,11 @@ public class AuthorController {
         authorResponse.setAddress(author.getAddress());
         authorResponse.setLanguage(author.getLanguage());
         return authorResponse;
+    }
+
+    @ExceptionHandler
+    ResponseEntity<String> handleExceptions(Throwable ex) {
+        errorCounter.increment();
+        return new ResponseEntity<>("Error:" + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
