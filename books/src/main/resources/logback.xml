@@ -11,8 +11,21 @@
         </encoder>
     </appender>
 
+    <appender name="File" class="ch.qos.logback.core.FileAppender">
+        <file>/Users/mbaliuk/Documents/logging-tracing-course/log-${bySecond}.log</file>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="ch.qos.logback.contrib.json.classic.JsonLayout">
+                <jsonFormatter class="ch.qos.logback.contrib.jackson.JacksonJsonFormatter"/>
+                <timestampFormat>yyyy-MM-dd'T'HH:mm:ss.SSSX</timestampFormat>
+                <timestampFormatTimezoneId>Etc/UTC</timestampFormatTimezoneId>
+                <appendLineSeparator>true</appendLineSeparator>
+            </layout>
+        </encoder>
+    </appender>
+
     <!-- LOG everything at INFO level -->
-    <root level="info">
+    <root level="DEBUG">
         <appender-ref ref="Console"/>
+        <appender-ref ref="File"/>
     </root>
 </configuration>

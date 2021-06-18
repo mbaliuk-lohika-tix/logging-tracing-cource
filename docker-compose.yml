@@ -7,6 +7,8 @@ services:
       - 8081:8081
     networks:
       - mynet
+    volumes:
+      - /var/lib/docker/containers/authors-logs:/Users/mbaliuk/Documents/logging-tracing-course
   books:
     image: estoyanov/bff-books-service:1.0
     container_name: bff-books-service
@@ -14,6 +16,8 @@ services:
       - 8082:8082
     networks:
       - mynet
+    volumes:
+      - /var/lib/docker/containers/books-logs:/Users/mbaliuk/Documents/logging-tracing-course
   web-sockets:
     image: estoyanov/bff-web-sockets-service:1.0
     container_name: bff-web-sockets-service
@@ -34,13 +38,50 @@ services:
     ports:
        - 8084:8084
     networks:
-        - mynet 
+        - mynet
+    volumes:
+      - /var/lib/docker/containers/frontend-logs:/Users/mbaliuk/Documents/logging-tracing-course
   zipkin:
     image: openzipkin/zipkin
     container_name: zipkin
     ports:
         - 9411:9411
     networks:
+      - mynet
+  elasticsearch:
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.12.1"
+    container_name: elasticsearch
+    environment:
+      ES_JAVA_OPTS: -Xms750m -Xmx750m
+      discovery.type: single-node
+    ports:
+        - "9200:9200"
+    networks:
+      - mynet
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+  kibana:
+    image: "docker.elastic.co/kibana/kibana:7.12.1"
+    container_name: kibana
+    ports:
+        - "5601:5601"
+    networks:
+      - mynet
+  filebeat:
+    image: "docker.elastic.co/beats/filebeat:7.12.1"
+    container_name: filebeat
+    user: root
+    volumes:
+      - ./logs:/usr/share/filebeat/data
+      - "./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro"
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["--strict.perms=false"]
+    networks:
         - mynet
 networks:
   mynet:
+volumes:
+  myapp:
+  filebeat:
+  elasticsearch_data:
